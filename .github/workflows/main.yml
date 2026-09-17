@@ -49,13 +49,12 @@ jobs:
         if: always()
         run: |
           mkdir -p out
-          echo "=== szukam APK ==="
-          find sdk -name "*.apk" 2>/dev/null | grep -i dvb || echo "brak apk dvb"
-          find sdk -name "*.apk" 2>/dev/null | tail -n 100
-          find sdk/bin -name "*.apk" -exec cp {} out/ \; 2>/dev/null || true
-          find sdk -path "*dvb*" -name "*.ko" 2>/dev/null | head -n 50
-          cp /tmp/build.log out/ 2>/dev/null || true
-          ls -lh out/ | head -n 100
+          find sdk -name "*dvb*.apk" 2>/dev/null | tee /tmp/found.txt
+          cat /tmp/found.txt
+          find sdk -name "*dvb*.apk" -exec cp {} out/ \; 2>/dev/null || true
+          ls -lh out/
+          echo "=== TOTAL ==="
+          du -sh out/
 
       - name: Upload
         if: always()
