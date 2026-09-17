@@ -7,16 +7,16 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libncurses-dev gawk unzip wget python3
+          sudo apt-get install -y build-essential clang flex bison gawk gettext libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file wget zstd
 
-      - name: Download OpenWrt SDK 25.12.5 filogic
+      - name: Download SDK
         run: |
-          wget https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-          tar --zstd -xf *.tar.zst
+          wget https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          tar --use-compress-program=unzstd -xf *.tar.zst
           mv openwrt-sdk-* sdk
           ls sdk
 
-      - name: Enable DVB in config
+      - name: Enable DVB
         run: |
           cd sdk
           ./scripts/feeds update -a
@@ -26,20 +26,21 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-dvb-usb-v2=m" >> .config
           echo "CONFIG_PACKAGE_kmod-dvb-af9033=m" >> .config
           echo "CONFIG_PACKAGE_kmod-dvb-usb-af9035=m" >> .config
-          echo "CONFIG_PACKAGE_kmod-usb-storage=m" >> .config
           make defconfig
 
-      - name: Build only DVB
+      - name: Build
         run: |
           cd sdk
           make package/kernel/linux/compile -j$(nproc) V=s
 
       - name: Collect
         run: |
-          find sdk/bin -name "*.apk" -o -name "*.ipk" | xargs ls -lh
           mkdir -p out
-          find sdk/bin -name "*dvb*.apk" -o -name "*af9035*.apk" -o -name "*dvb*.ipk" | xargs -I {} cp {} out/ || true
-          ls -lh out/
+          find sdk/bin -name "*dvb*" | tee /tmp/list
+          find sdk/bin -type f -name "*.apk" | xargs grep -l dvb 2>/dev/null || true
+          find sdk/bin -name "*dvb*.apk" -exec cp {} out/ \;
+          find sdk/bin -name "*af903*.apk" -exec cp {} out/ \;
+          ls -lh out/ || ls -lh sdk/bin/targets/mediatek/filogic/packages/
 
       - name: Upload
         uses: actions/upload-artifact@v4
