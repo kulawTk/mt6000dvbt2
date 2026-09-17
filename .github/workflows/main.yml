@@ -9,11 +9,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison gawk gettext libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file wget zstd
 
-      - name: Download SDK
+        - name: Download SDK
         run: |
-          wget https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          rm -rf sdk openwrt-sdk-*
+          wget -q https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
           tar --use-compress-program=unzstd -xf *.tar.zst
-          mv openwrt-sdk-* sdk
+          ls -d openwrt-sdk-*
+          mv openwrt-sdk-25.12.5-mediatek-filogic* sdk
           ls sdk
 
       - name: Enable DVB
