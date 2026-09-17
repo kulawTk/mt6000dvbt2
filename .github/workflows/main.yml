@@ -11,10 +11,11 @@ jobs:
 
       - name: Download SDK
         run: |
-          rm -rf sdk openwrt-sdk-*
-          wget -q https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
-          tar --use-compress-program=unzstd -xf *.tar.zst
-          mv openwrt-sdk-25.12.5-mediatek-filogic* sdk
+          rm -rf sdk sdk.tar.zst
+          wget -O sdk.tar.zst https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          mkdir -p sdk
+          tar -I zstd -xf sdk.tar.zst --strip-components=1 -C sdk
+          ls -lh sdk
 
       - name: Enable DVB
         run: |
@@ -27,22 +28,23 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-dvb-af9033=m" >> .config
           echo "CONFIG_PACKAGE_kmod-dvb-usb-af9035=m" >> .config
           make defconfig
-          cat .config | grep DVB
+          grep -i dvb .config | head -n 20
 
       - name: Build
         run: |
           cd sdk
-          make package/kernel/linux/compile -j$(nproc) V=s 2>&1 | tee /tmp/build.log || true
+          make package/kernel/linux/compile -j$(nproc) V=s 2>&1 | tee /tmp/build.log; echo EXIT_CODE:$?
 
-      - name: Show fail
+      - name: Collect
         if: always()
         run: |
-          tail -n 200 /tmp/build.log
           mkdir -p out
-          find sdk/bin -name "*.apk" 2>/dev/null | grep dvb || echo "no apk yet"
-          find sdk -name "*.ko" 2>/dev/null | grep af903 | head
-          cp /tmp/build.log out/ || true
-          ls -lh sdk/bin/targets/mediatek/filogic/packages/ 2>/dev/null | tail -n 100 || true
+          cat /tmp/build.log | tail -n 300 || true
+          find sdk/bin -type f -name "*.apk" 2>/dev/null | xargs ls -lh 2>/dev/null | head
+          find sdk/bin -type f -name "*dvb*" 2>/dev/null | head
+          find sdk/bin -name "*.apk" -exec cp {} out/ \; 2>/dev/null || true
+          cp /tmp/build.log out/ 2>/dev/null || true
+          ls -lh out/
 
       - name: Upload
         if: always()
