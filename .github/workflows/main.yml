@@ -27,24 +27,35 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-dvb-usb-v2=m" >> .config
           echo "CONFIG_PACKAGE_kmod-dvb-af9033=m" >> .config
           echo "CONFIG_PACKAGE_kmod-dvb-usb-af9035=m" >> .config
+          echo "CONFIG_PACKAGE_kmod-dvb-usb-rtl28xxu=m" >> .config
+          echo "CONFIG_PACKAGE_kmod-usb2=m" >> .config
           make defconfig
-          grep -i dvb .config | head -n 20
+          grep -i dvb .config
 
-      - name: Build
+      - name: Build kernel
         run: |
           cd sdk
-          make package/kernel/linux/compile -j$(nproc) V=s 2>&1 | tee /tmp/build.log; echo EXIT_CODE:$?
+          make package/kernel/linux/compile -j$(nproc) V=s 2>&1 | tee /tmp/build.log || true
+
+      - name: Build DVB modules
+        run: |
+          cd sdk
+          make package/kernel/dvb-core/compile -j$(nproc) V=s 2>&1 | tee -a /tmp/build.log || true
+          make package/kernel/dvb-usb/compile -j$(nproc) V=s 2>&1 | tee -a /tmp/build.log || true
+          make package/kernel/dvb/compile -j$(nproc) V=s 2>&1 | tee -a /tmp/build.log || true
+          tail -n 200 /tmp/build.log
 
       - name: Collect
         if: always()
         run: |
           mkdir -p out
-          cat /tmp/build.log | tail -n 300 || true
-          find sdk/bin -type f -name "*.apk" 2>/dev/null | xargs ls -lh 2>/dev/null | head
-          find sdk/bin -type f -name "*dvb*" 2>/dev/null | head
+          echo "=== szukam APK ==="
+          find sdk -name "*.apk" 2>/dev/null | grep -i dvb || echo "brak apk dvb"
+          find sdk -name "*.apk" 2>/dev/null | tail -n 100
           find sdk/bin -name "*.apk" -exec cp {} out/ \; 2>/dev/null || true
+          find sdk -path "*dvb*" -name "*.ko" 2>/dev/null | head -n 50
           cp /tmp/build.log out/ 2>/dev/null || true
-          ls -lh out/
+          ls -lh out/ | head -n 100
 
       - name: Upload
         if: always()
