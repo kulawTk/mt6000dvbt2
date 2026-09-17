@@ -9,12 +9,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison gawk gettext libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file wget zstd
 
-        - name: Download SDK
+      - name: Download SDK
         run: |
           rm -rf sdk openwrt-sdk-*
           wget -q https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
           tar --use-compress-program=unzstd -xf *.tar.zst
-          ls -d openwrt-sdk-*
           mv openwrt-sdk-25.12.5-mediatek-filogic* sdk
           ls sdk
 
@@ -36,15 +35,17 @@ jobs:
           make package/kernel/linux/compile -j$(nproc) V=s
 
       - name: Collect
+        if: always()
         run: |
           mkdir -p out
-          find sdk/bin -name "*dvb*" | tee /tmp/list
-          find sdk/bin -type f -name "*.apk" | xargs grep -l dvb 2>/dev/null || true
-          find sdk/bin -name "*dvb*.apk" -exec cp {} out/ \;
-          find sdk/bin -name "*af903*.apk" -exec cp {} out/ \;
-          ls -lh out/ || ls -lh sdk/bin/targets/mediatek/filogic/packages/
+          find sdk/bin -name "*.apk" | grep -i dvb || true
+          find sdk/bin -name "*dvb*" -o -name "*af903*" | head -n 50
+          find sdk/bin -name "*dvb*.apk" -exec cp {} out/ \; || true
+          find sdk/bin -name "*af903*.apk" -exec cp {} out/ \; || true
+          ls -lh out/
 
       - name: Upload
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kmod-dvb-mt6000
