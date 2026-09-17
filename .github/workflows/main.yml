@@ -15,7 +15,6 @@ jobs:
           wget -q https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst
           tar --use-compress-program=unzstd -xf *.tar.zst
           mv openwrt-sdk-25.12.5-mediatek-filogic* sdk
-          ls sdk
 
       - name: Enable DVB
         run: |
@@ -28,21 +27,22 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-dvb-af9033=m" >> .config
           echo "CONFIG_PACKAGE_kmod-dvb-usb-af9035=m" >> .config
           make defconfig
+          cat .config | grep DVB
 
       - name: Build
         run: |
           cd sdk
-          make package/kernel/linux/compile -j$(nproc) V=s
+          make package/kernel/linux/compile -j$(nproc) V=s 2>&1 | tee /tmp/build.log || true
 
-      - name: Collect
+      - name: Show fail
         if: always()
         run: |
+          tail -n 200 /tmp/build.log
           mkdir -p out
-          find sdk/bin -name "*.apk" | grep -i dvb || true
-          find sdk/bin -name "*dvb*" -o -name "*af903*" | head -n 50
-          find sdk/bin -name "*dvb*.apk" -exec cp {} out/ \; || true
-          find sdk/bin -name "*af903*.apk" -exec cp {} out/ \; || true
-          ls -lh out/
+          find sdk/bin -name "*.apk" 2>/dev/null | grep dvb || echo "no apk yet"
+          find sdk -name "*.ko" 2>/dev/null | grep af903 | head
+          cp /tmp/build.log out/ || true
+          ls -lh sdk/bin/targets/mediatek/filogic/packages/ 2>/dev/null | tail -n 100 || true
 
       - name: Upload
         if: always()
