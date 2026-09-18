@@ -1,0 +1,47 @@
+name: MT6000 DVB Firmware
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: openwrt/openwrt
+          ref: openwrt-24.10
+
+      - name: deps
+        run: sudo apt update && sudo apt install -y build-essential flex bison gawk libncurses-dev zlib1g-dev
+
+      - name: feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: config
+        run: |
+          cat > .config <<'EOF'
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_filogic=y
+          CONFIG_TARGET_mediatek_filogic_DEVICE_glinet_gl-mt6000=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_kmod-usb3=y
+          CONFIG_PACKAGE_kmod-media-core=y
+          CONFIG_PACKAGE_kmod-dvb-core=y
+          CONFIG_PACKAGE_kmod-dvb-usb=y
+          CONFIG_PACKAGE_kmod-dvb-usb-v2=y
+          CONFIG_PACKAGE_kmod-dvb-af9033=y
+          CONFIG_PACKAGE_kmod-dvb-usb-af9035=y
+          CONFIG_PACKAGE_kmod-dvb-rtl28xxu=y
+          CONFIG_PACKAGE_kmod-dvb-usb-rtl28xxu=y
+          CONFIG_PACKAGE_kmod-i2c-mux=y
+          EOF
+          make defconfig
+
+      - name: build
+        run: make -j$(nproc)
+
+      - name: upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: mt6000-dvb-firmware
+          path: bin/targets/mediatek/filogic/*
